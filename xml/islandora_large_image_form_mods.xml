@@ -24,7 +24,7 @@
                 <properties>
                     <type>file</type>
                     <access>true</access>
-                    <description>Select tiff image to upload.</description>
+                    <description>Select tiff of jp2 image to upload.</description>
                     <required>false</required>
                     <tree>true</tree>
 		    <element_validate>

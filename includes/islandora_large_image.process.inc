@@ -15,21 +15,85 @@
  * @return boolean
  *   TRUE if all derivatives were created successfully, FALSE otherwise.
  */
+
 function islandora_large_image_create_all_derivatives(FedoraObject $object) {
+
   if (!isset($object['OBJ'])) {
     drupal_set_message(t('Could not create image derivatives for %s.  No image file was uploaded.', array('%s' => $object->id)), 'error');
     return FALSE;
   }
   $base_name = str_replace(':', '-', $object->id);
   $uploaded_file = islandora_large_image_get_uploaded_file($object, $base_name);
-  if ($uploaded_file) {
+
+  if (! $uploaded_file)
+    return FALSE;
+
+  $mime_type = $object['OBJ']->mimeType;
+
+  if ($mime_type == 'image/tiff' or  $mime_type == 'image/tif'  ) {
+
+    $ob  = TRUE;
     $jp2 = islandora_large_image_create_JP2_derivative($object, $uploaded_file, $base_name);
-    $jpg = islandora_large_image_create_JPG_derivative($object, $uploaded_file, $base_name);
-    $tn = islandora_large_image_create_TN_derivative($object, $uploaded_file, $base_name);
-    return $jp2 && $jpg && $tn && file_unmanaged_delete($uploaded_file);
+
+  } elseif ( $mime_type == 'image/jp2' ) {
+
+    $jp2 = islandora_large_image_add_datastream($object, 'JP2', $uploaded_file, 'image/jp2', t('Original JPEG 2000 ' . $object['OBJ']->label));
+    $ob  = islandora_large_image_replace_obj_datastream($object, $uploaded_file);
+
+  } else {
+
+    return FALSE;
   }
-  return FALSE;
+
+  $jpg = islandora_large_image_create_JPG_derivative($object, $uploaded_file, $base_name);
+  $tn = islandora_large_image_create_TN_derivative($object, $uploaded_file, $base_name);
+
+  return $ob && $jp2 && $jpg && $tn && file_unmanaged_delete($uploaded_file);
+
 }
+
+
+/**
+ * Replaces the OBJ datastream with a TIFF, derived from the uploaded JP2
+ *
+ * @param FedoraObject $object
+ *  The object to fetch the uploaded image file from.
+ * @param string $original_jp2
+ *  The filepath to the original jp2k from which we'll derive a tiff
+ *
+ * @return boolean
+ *   TRUE if successful, FALSE otherwise.
+ */
+
+function islandora_large_image_replace_obj_datastream(FedoraObject $object, $original_jp2) {
+
+  if (! $object->purgeDatastream('OBJ')) {
+    drupal_set_message(t('Could not purge extra JP2', 'error'));
+    return FALSE;
+  }
+
+  $file_name = str_replace(':', '-', $object->id);
+  $derivative_file  = file_save_data('', 'temporary://' . $file_name . '.tiff');
+
+  exec(escapeshellcmd("convert -resize 1024x1024> " . drupal_realpath($original_jp2) . " " . drupal_realpath($derivative_file->uri)));
+
+  $ds = $object->constructDatastream('OBJ', 'M');
+  $ds->label = 'Reduced TIFF Derived from original JPEG 2000 Image';
+  $ds->mimeType = 'image/tiff';
+  $ds->versionable = FALSE;
+  $ds->setContentFromFile(drupal_realpath($derivative_file->uri));
+
+  try {
+    $object->ingestDatastream($ds);
+  } catch (exception $e) {
+    drupal_set_message(t('@message', array('@message' => check_plain($e->getMessage()))), 'error');
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+
 
 /**
  * Fetches the upload image file from Fedora, and saves it to a temp location.
@@ -68,7 +132,7 @@ function islandora_large_image_create_JP2_derivative(FedoraObject $object, $uplo
     drupal_set_message(t('Failed to create JP2 derivative'), 'error');
     return FALSE;
   }
-  islandora_large_image_add_datastream($object, 'JP2', $derivative_file, 'image/jp2', t('JPEG 2000'));
+  islandora_large_image_add_datastream($object, 'JP2', $derivative_file, 'image/jp2', t('JPEG 2000 derived from original TIFF'));
   return file_unmanaged_delete($derivative_file);
 }
 

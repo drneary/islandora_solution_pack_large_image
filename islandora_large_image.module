@@ -153,14 +153,14 @@ function islandora_large_image_islandora_sp_large_image_cmodel_islandora_ingest_
 /**
  * Implements validation callback for the file upload field in the ingest form.
  *
- * Prevent's the upload of non TIFF image files.
+ * Prevent's the upload of non TIFF image files.  (Or non JP2K)
  */
 function islandora_large_image_ingest_form_validate_file(array $element, array &$form_state, $form) {
   if ($_FILES['files']['error']['ingest-file-location'] != 0) {
     form_error($element, t('This field is required.'));
   }
-  elseif (!in_array($_FILES['files']['type']['ingest-file-location'], array('image/tiff', 'image/tif'))) {
-    form_error($element, t('This field only accepts tiff formated image files.'));
+  elseif (!in_array($_FILES['files']['type']['ingest-file-location'], array('image/tiff', 'image/tif', 'image/jp2'))) {
+    form_error($element, t('This field only accepts tiff or jp2 formated image files.'));
   }
 }
 
