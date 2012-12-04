@@ -22,6 +22,7 @@ function islandora_large_image_create_all_derivatives(FedoraObject $object) {
     drupal_set_message(t('Could not create image derivatives for %s.  No image file was uploaded.', array('%s' => $object->id)), 'error');
     return FALSE;
   }
+
   $base_name = str_replace(':', '-', $object->id);
   $uploaded_file = islandora_large_image_get_uploaded_file($object, $base_name);
 
@@ -37,7 +38,7 @@ function islandora_large_image_create_all_derivatives(FedoraObject $object) {
 
   } elseif ( $mime_type == 'image/jp2' ) {
 
-    $jp2 = islandora_large_image_add_datastream($object, 'JP2', $uploaded_file, 'image/jp2', t('Original JPEG 2000 ' . $object['OBJ']->label));
+    $jp2 = islandora_large_image_add_datastream($object, 'JP2', $uploaded_file, 'image/jp2', t('Original JPEG 2000 "' . $object['OBJ']->label . '"'));
     $ob  = islandora_large_image_replace_obj_datastream($object, $uploaded_file);
 
   } else {
@@ -73,15 +74,18 @@ function islandora_large_image_replace_obj_datastream(FedoraObject $object, $ori
   }
 
   $file_name = str_replace(':', '-', $object->id);
-  $derivative_file  = file_save_data('', 'temporary://' . $file_name . '.tiff');
+  $derivative_file  = file_unmanaged_save_data('', "temporary://{$file_name}.tiff");
 
-  exec(escapeshellcmd("convert -resize 1024x1024> " . drupal_realpath($original_jp2) . " " . drupal_realpath($derivative_file->uri)));
+  $src = drupal_realpath($original_jp2);
+  $dest = drupal_realpath($derivative_file);
+
+  exec(escapeshellcmd("convert -resize 1024x1024> {$src} {$dest}"));
 
   $ds = $object->constructDatastream('OBJ', 'M');
   $ds->label = 'Reduced TIFF Derived from original JPEG 2000 Image';
   $ds->mimeType = 'image/tiff';
   $ds->versionable = FALSE;
-  $ds->setContentFromFile(drupal_realpath($derivative_file->uri));
+  $ds->setContentFromFile($dest);
 
   try {
     $object->ingestDatastream($ds);
@@ -90,7 +94,7 @@ function islandora_large_image_replace_obj_datastream(FedoraObject $object, $ori
     return FALSE;
   }
 
-  return TRUE;
+  return file_unmanaged_delete($derivative_file);
 }
 
 
