@@ -17,6 +17,7 @@
  */
 
 function islandora_large_image_create_all_derivatives(FedoraObject $object) {
+  // drupal_set_message(t('islandora_large_image_create_all_derivatives called'));
 
   if (!isset($object['OBJ'])) {
     drupal_set_message(t('Could not create image derivatives for %s.  No image file was uploaded.', array('%s' => $object->id)), 'error');
@@ -31,12 +32,17 @@ function islandora_large_image_create_all_derivatives(FedoraObject $object) {
 
   $mime_type = $object['OBJ']->mimeType;
 
+  // drupal_set_message(t('islandora_large_image_create_all_derivatives: mime_type is %s', array('%s' => $mime_type)), 'error');
+
+
   if ($mime_type == 'image/tiff' or  $mime_type == 'image/tif'  ) {
 
     $ob  = TRUE;
     $jp2 = islandora_large_image_create_JP2_derivative($object, $uploaded_file, $base_name);
 
-  } elseif ( $mime_type == 'image/jp2' ) {
+    // drupal file type doesn't currently support jp2k - will submit a bug report - for now, octet-stream will be assumed to be a jp2k:
+
+  } elseif ( $mime_type == 'image/jp2' or $mime_type == 'application/octet-stream' ) {
 
     $jp2 = islandora_large_image_add_datastream($object, 'JP2', $uploaded_file, 'image/jp2', t('Original JPEG 2000 "' . $object['OBJ']->label . '"'));
     $ob  = islandora_large_image_replace_obj_datastream($object, $uploaded_file);
@@ -67,7 +73,6 @@ function islandora_large_image_create_all_derivatives(FedoraObject $object) {
  */
 
 function islandora_large_image_replace_obj_datastream(FedoraObject $object, $original_jp2) {
-
   if (! $object->purgeDatastream('OBJ')) {
     drupal_set_message(t('Could not purge extra JP2', 'error'));
     return FALSE;
@@ -337,5 +342,6 @@ function islandora_large_image_get_args() {
     $args[] = "-define jp2:cblkheight=64";
     $args[] = "-define jp2:sop";
   }
+  
   return $args;
 }
