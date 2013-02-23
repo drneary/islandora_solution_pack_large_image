@@ -70,7 +70,7 @@ function islandora_large_image_create_all_derivatives(AbstractFedoraObject $obje
  *   TRUE if successful, FALSE otherwise.
  */
 
-function islandora_large_image_replace_obj_datastream(FedoraObject $object, $original_jp2) {
+function islandora_large_image_replace_obj_datastream(AbstractFedoraObject $object, $original_jp2) {
   if (! $object->purgeDatastream('OBJ')) {
     drupal_set_message(t('Could not purge extra JP2', 'error'));
     return FALSE;
