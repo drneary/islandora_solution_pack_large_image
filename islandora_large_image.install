@@ -6,28 +6,6 @@
  */
 
 /**
- * Implements hook_requirements().
- */
-function islandora_large_image_requirements($phase) {
-  $requirements = array();
-  if ($phase == 'install') {
-    $t = get_t();
-    $out = array();
-    $ret = 1;
-    exec('command -v kdu_compress >/dev/null 2>&1', $out, $ret);
-    if ($ret != 0) {
-      $requirements['kakadu'] = array(
-        'title' => $t("Kakadu Image Compression"),
-        'value' => $t("Not installed"),
-        'severity' => REQUIREMENT_ERROR,
-        'description' => $t('Ensure that Adore-Djatoka is installed and kdu_compress is accessible to PHP.')
-      );
-    }
-  }
-  return $requirements;
-}
-
-/**
  * Implements hook_install().
  *
  * @see islandora_large_image_islandora_required_objects()
