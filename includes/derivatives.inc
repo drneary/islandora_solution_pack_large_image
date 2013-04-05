@@ -18,7 +18,7 @@
 
 function islandora_large_image_create_all_derivatives(AbstractFedoraObject $object) {
   if (!isset($object['OBJ'])) {
-    drupal_set_message(t('Could not create image derivatives for %s.  No image file was uploaded.', array('%s' => $object->id)), 'error');
+    drupal_set_message(t('Could not create image derivatives for %s. No image file was uploaded.', array('%s' => $object->id)), 'error');
     return FALSE;
   }
 
@@ -146,7 +146,7 @@ function islandora_large_image_create_JP2_derivative(AbstractFedoraObject $objec
   if ($kakadu) {
     $derivative_file = islandora_large_image_kdu_compress($uploaded_file, "temporary://{$base_name}_JP2.jp2"); // Create JP2
     if (!$derivative_file) {
-      drupal_set_message(t("Kakadu failed.  Trying ImageMagick"));
+      drupal_set_message(t("Kakadu failed. Trying ImageMagick ..."));
       $kakadu = FALSE; //forces retry with IMageMagick if Kakadu has failed - allows compressed tiffs if unsupported by Kakadu version
     }
   }
@@ -266,7 +266,7 @@ function islandora_large_image_kdu_compress($src, $dest, $args = NULL) {
   }
 
   if ($ret != 0 || $ret_palette != 0) {
-    $message = 'kdu_compress failed to create derivative<br/>Error: @ret<br/>Command: @command <br/>Output !output';
+    $message = 'Kakadu failed to create derivatives<br/>Error: @ret<br/>Command: @command <br/>Output !output';
     $variables = array('@ret' => $ret, '@command' => $command, '!output' => implode('<br/>', $output));
     watchdog('islandora_large_image', $message, $variables, WATCHDOG_ERROR);
     return FALSE;
@@ -310,7 +310,7 @@ function islandora_large_image_imagemagick_convert($src, $dest, $args) {
   $output = '';
   $ret = -1;
   if (_imagemagick_convert_exec($command, $output, $ret) !== TRUE) {
-    $message = 'imagemagick convert failed to create derivative<br/>Error: @ret<br/>Command: @command<br/>Output: @output';
+    $message = 'ImageMagick failed to create derivatives<br/>Error: @ret<br/>Command: @command<br/>Output: @output';
     $variables = array('@ret' => $ret, '@command' => $command, '@output' => $output);
     watchdog('islandora_large_image', $message, $variables, WATCHDOG_ERROR);
     return FALSE;
