@@ -37,62 +37,21 @@ function islandora_large_image_create_all_derivatives(AbstractObject $object, $f
 
   if ($mime_type == 'image/tiff' or  $mime_type == 'image/tif'  ) {
     $ob  = TRUE;
-    $tiff = islandora_large_image_add_datastream($object, 'TIFF', $uploaded_file, 'image/tiff', t('Original TIFF "' . $object['OBJ']->label . '"'));
     $jp2 = islandora_large_image_create_JP2_derivative($object, $uploaded_file, $base_name);
   // drupal file type doesn't currently support jp2k - will submit a bug report - for now, octet-stream will be assumed to be a jp2k:
   } elseif ( $mime_type == 'image/jp2' or $mime_type == 'application/octet-stream' ) {
     $ob = TRUE;
     $jp2 = islandora_large_image_add_datastream($object, 'JP2', $uploaded_file, 'image/jp2', t('Original JPEG 2000 "' . $object['OBJ']->label . '"'));
-    $tiff  = islandora_large_image_create_TIFF_derivative($object, $uploaded_file, $base_name);
-
   } else {
-
     return FALSE;
   }
 
-  $jpg = islandora_large_image_create_JPG_derivative($object, $tiff, $base_name);
-  $tn = islandora_large_image_create_TN_derivative($object, $tiff, $base_name);
+  $jpg = islandora_large_image_create_JPG_derivative($object, $uploaded_file, $base_name);
+  $tn = islandora_large_image_create_TN_derivative($object, $uploaded_file, $base_name);
 
-  return $ob && $jp2 && $tiff && $jpg && $tn && file_unmanaged_delete($uploaded_file) && file_unmanaged_delete($tiff) && file_unmanaged_delete($jp2);
+  return $ob && $jp2 && $jpg && $tn && file_unmanaged_delete($uploaded_file) && file_unmanaged_delete($jp2);
 
 }
-
-
-/**
- * Creates the TIFF derived datatstream from the uploaded JP2 image file.
- *
- * @param FedoraObject $object
- *  The object to fetch the uploaded image file from.
- * @param string $original_jp2
- *  The filepath to the original jp2k from which we'll derive a tiff
- *
- * @return boolean
- *   TRUE if successful, FALSE otherwise.
- */
-
-function islandora_large_image_create_TIFF_derivative(AbstractFedoraObject $object, $original_jp2, $base_name) {
-  // create JP2 with kakadu
-  module_load_include('inc', 'islandora_large_image', 'includes/utilities');
-  $kakadu = variable_get('islandora_use_kakadu', !islandora_large_image_check_imagemagick_for_jpeg2000());
-
-  if ($kakadu) {
-    $derivative_file = islandora_large_image_kdu_expand($original_jp2, "temporary://{$base_name}_TIFF.tiff"); // Create TIFF
-    if (!$derivative_file) {
-      drupal_set_message(t("Kakadu failed. Trying ImageMagick ..."));
-      $kakadu = FALSE; //forces retry with ImageMagick if Kakadu has failed
-    }
-  }
-  if (!$kakadu) {
-    $derivative_file = islandora_large_image_imagemagick_convert($original_jp2, "temporary://{$base_name}_TIFF.tiff", islandora_large_image_get_args());
-  }
-  if ($derivative_file === FALSE) {
-    drupal_set_message(t('Failed to create TIFF derivative'), 'error');
-    return FALSE;
-  }
-  islandora_large_image_add_datastream($object, 'TIFF', $derivative_file, 'image/tiff', t('TIFF derived from original JPEG2000'));
-  return $derivative_file;
-}
-
 
 
 /**
