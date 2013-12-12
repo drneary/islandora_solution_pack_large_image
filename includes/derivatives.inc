@@ -34,72 +34,22 @@ function islandora_large_image_create_all_derivatives(AbstractFedoraObject $obje
 
 
   if ($mime_type == 'image/tiff' or  $mime_type == 'image/tif'  ) {
-
     $ob  = TRUE;
     $jp2 = islandora_large_image_create_JP2_derivative($object, $uploaded_file, $base_name);
-
-    // drupal file type doesn't currently support jp2k - will submit a bug report - for now, octet-stream will be assumed to be a jp2k:
-
+  // drupal file type doesn't currently support jp2k - will submit a bug report - for now, octet-stream will be assumed to be a jp2k:
   } elseif ( $mime_type == 'image/jp2' or $mime_type == 'application/octet-stream' ) {
-
+    $ob = TRUE;
     $jp2 = islandora_large_image_add_datastream($object, 'JP2', $uploaded_file, 'image/jp2', t('Original JPEG 2000 "' . $object['OBJ']->label . '"'));
-    $ob  = islandora_large_image_replace_obj_datastream($object, $uploaded_file);
-
   } else {
-
     return FALSE;
   }
 
   $jpg = islandora_large_image_create_JPG_derivative($object, $uploaded_file, $base_name);
   $tn = islandora_large_image_create_TN_derivative($object, $uploaded_file, $base_name);
 
-  return $ob && $jp2 && $jpg && $tn && file_unmanaged_delete($uploaded_file);
+  return $ob && $jp2 && $jpg && $tn && file_unmanaged_delete($uploaded_file) && file_unmanaged_delete($jp2);
 
 }
-
-
-/**
- * Replaces the OBJ datastream with a TIFF, derived from the uploaded JP2
- *
- * @param FedoraObject $object
- *  The object to fetch the uploaded image file from.
- * @param string $original_jp2
- *  The filepath to the original jp2k from which we'll derive a tiff
- *
- * @return boolean
- *   TRUE if successful, FALSE otherwise.
- */
-
-function islandora_large_image_replace_obj_datastream(AbstractFedoraObject $object, $original_jp2) {
-  if (! $object->purgeDatastream('OBJ')) {
-    drupal_set_message(t('Could not purge extra JP2', 'error'));
-    return FALSE;
-  }
-
-  $file_name = str_replace(':', '-', $object->id);
-  $derivative_file  = file_unmanaged_save_data('', "temporary://{$file_name}.tiff");
-
-  $src = drupal_realpath($original_jp2);
-  $dest = drupal_realpath($derivative_file);
-
-  exec(escapeshellcmd("convert -resize 1024x1024> {$src} {$dest}"));
-
-  $ds = $object->constructDatastream('OBJ', 'M');
-  $ds->label = 'Reduced TIFF Derived from original JPEG 2000 Image';
-  $ds->mimeType = 'image/tiff';
-  $ds->versionable = FALSE;
-  $ds->setContentFromFile($dest);
-
-  try {
-    $object->ingestDatastream($ds);
-  } catch (exception $e) {
-    drupal_set_message(t('@message', array('@message' => check_plain($e->getMessage()))), 'error');
-    return FALSE;
-  }
-
-  return file_unmanaged_delete($derivative_file);
-}
-
 
 
 /**
@@ -351,7 +301,12 @@ function islandora_large_image_kdu_compress($src, $dest, $args = NULL) {
   $ret = -1;
   $ret_palette = 0;
   $output = array();
-  $kdu_compress = variable_get('islandora_kakadu_url', 'kdu_compress');
+  $kdu_home = variable_get('islandora_kakadu_url', FALSE);
+  if ($kdu_home) {
+    $kdu_compress = "$kdu_home/kdu_compress";
+  } else {
+    $kdu_compress = 'kdu_compress';
+  }
   $command = "$kdu_compress -i \"$src\" -o \"$dest\" $args 2>&1";
   exec($command, $output, $ret);
 
@@ -373,6 +328,46 @@ function islandora_large_image_kdu_compress($src, $dest, $args = NULL) {
     file_unmanaged_delete($src);
   }
 
+  return $dest;
+}
+
+/**
+ * Calls kdu_expand with the given arguments, or defaults if none are provided.
+ *
+ * @param string $src
+ *   The source file to pass to kdu_expand
+ * @param string $dest
+ *   The destination file which kdu_expand will generate.
+ * @param string $args
+ *   Any additional arguments for kdu_expand, if not provided reasonable defaults will be used.
+ *
+ * @return
+ *   Returns the newly generated file uri or FALSE if the conversion failed
+ */
+function islandora_large_image_kdu_expand($src, $dest, $args = NULL) {
+  $args = isset($args) ? $args : ''; // Default args.
+  $src = drupal_realpath($src);
+  $dest = drupal_realpath($dest);
+  $ret = -1;
+  $output = array();
+  $kdu_home = variable_get('islandora_kakadu_url', FALSE);
+  if ($kdu_home) {
+    $kdu_expand = "$kdu_home/kdu_expand";
+  } else {
+    $kdu_expand = 'kdu_expand';
+  }
+  $command = "$kdu_expand -i \"$src\" -o \"$dest\" $args 2>&1";
+  exec($command, $output, $ret);
+
+  $output_string = implode(' ', $output);
+
+  if ($ret != 0) {
+    $message = 'Kakadu failed to create derivatives<br/>Error: @ret<br/>Command: @command <br/>Output !output';
+    $variables = array('@ret' => $ret, '@command' => $command, '!output' => implode('<br/>', $output));
+    watchdog('islandora_large_image', $message, $variables, WATCHDOG_ERROR);
+    return FALSE;
+  }
+  
   return $dest;
 }
 
@@ -457,6 +452,7 @@ function islandora_large_image_add_datastream(AbstractObject $object, $dsid, $fi
       WATCHDOG_ERROR);
     return FALSE;
   }
+  return TRUE;
 }
 
 /**
