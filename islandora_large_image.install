@@ -20,20 +20,21 @@ function islandora_large_image_install() {
  *
  * Implements hook_update_N().
  *
- * Previous versions specified the path to the kdu_compress executable.  Since we also
- * now need to use kdu_expand, this variable is being rewritten to point to the Kakadu
- * executable directory.
+ * Previous versions specified the path to the kdu_compress executable.
+ * Since we also now need to use kdu_expand, this variable is being
+ * rewritten to point to the Kakadu executable directory.
  */
 function islandora_large_image_update_7100(&$sandbox) {
   $kdu_home = variable_get('islandora_kakadu_url', FALSE);
-  $kdu_home = preg_replace('#/kdu-compress$#','',$kdu_home);
+  $kdu_home = preg_replace('#/kdu-compress$#', '', $kdu_home);
   variable_set('islandora_kakadu_url', $kdu_home);
 }
 
 /**
  * Implements hook_uninstall().
  */
-function islandora_large_image_uninstall() {  module_load_include('inc', 'islandora', 'includes/solution_packs');
+function islandora_large_image_uninstall() {
+  module_load_include('inc', 'islandora', 'includes/solution_packs');
   islandora_install_solution_pack('islandora_large_image', 'uninstall');
   $variables = array('islandora_large_image_viewers');
   array_walk($variables, 'variable_del');

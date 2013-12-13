@@ -7,15 +7,14 @@
  */
 
 /**
- * Creates the derivatives for this content model type
+ * Creates the derivatives for this content model type.
  *
  * @param FedoraObject $object
  *   The object to add derivatives to.
  *
- * @return boolean
+ * @return bool
  *   TRUE if all derivatives were created successfully, FALSE otherwise.
  */
-
 function islandora_large_image_create_all_derivatives(AbstractFedoraObject $object) {
   if (!isset($object['OBJ'])) {
     drupal_set_message(t('Could not create image derivatives for %s.  No image file was uploaded.', array('%s' => $object->id)), 'error');
@@ -25,22 +24,24 @@ function islandora_large_image_create_all_derivatives(AbstractFedoraObject $obje
   $base_name = str_replace(':', '-', $object->id);
   $uploaded_file = islandora_large_image_get_uploaded_file($object, $base_name);
 
-  if (! $uploaded_file)
+  if (!$uploaded_file) {
     return FALSE;
+  }
 
   $mime_type = $object['OBJ']->mimeType;
 
-  // drupal_set_message(t('islandora_large_image_create_all_derivatives: mime_type is %s', array('%s' => $mime_type)), 'error');
-
-
-  if ($mime_type == 'image/tiff' or  $mime_type == 'image/tif'  ) {
+  if ($mime_type == 'image/tiff' || $mime_type == 'image/tif') {
     $ob  = TRUE;
     $jp2 = islandora_large_image_create_JP2_derivative($object, $uploaded_file, $base_name);
-  // drupal file type doesn't currently support jp2k - will submit a bug report - for now, octet-stream will be assumed to be a jp2k:
-  } elseif ( $mime_type == 'image/jp2' or $mime_type == 'application/octet-stream' ) {
+  }
+  // Drupal file type doesn't currently support jp2k - will submit a bug
+  // report - for now, octet-stream will be assumed to be a jp2k:
+  elseif ($mime_type == 'image/jp2' or $mime_type == 'application/octet-stream') {
     $ob = TRUE;
-    $jp2 = islandora_large_image_add_datastream($object, 'JP2', $uploaded_file, 'image/jp2', t('Original JPEG 2000 "' . $object['OBJ']->label . '"'));
-  } else {
+    $jp2 = islandora_large_image_add_datastream($object, 'JP2', $uploaded_file, 'image/jp2',
+      t('Original JPEG 2000 "%s"', $object['OBJ']->label));
+  }
+  else {
     return FALSE;
   }
 
@@ -304,7 +305,8 @@ function islandora_large_image_kdu_compress($src, $dest, $args = NULL) {
   $kdu_home = variable_get('islandora_kakadu_url', FALSE);
   if ($kdu_home) {
     $kdu_compress = "$kdu_home/kdu_compress";
-  } else {
+  }
+  else {
     $kdu_compress = 'kdu_compress';
   }
   $command = "$kdu_compress -i \"$src\" -o \"$dest\" $args 2>&1";
@@ -339,13 +341,14 @@ function islandora_large_image_kdu_compress($src, $dest, $args = NULL) {
  * @param string $dest
  *   The destination file which kdu_expand will generate.
  * @param string $args
- *   Any additional arguments for kdu_expand, if not provided reasonable defaults will be used.
+ *   Any additional arguments for kdu_expand, if not provided reasonable
+ *   defaults will be used.
  *
- * @return
+ * @return bool
  *   Returns the newly generated file uri or FALSE if the conversion failed
  */
 function islandora_large_image_kdu_expand($src, $dest, $args = NULL) {
-  $args = isset($args) ? $args : ''; // Default args.
+  $args = isset($args) ? $args : '';
   $src = drupal_realpath($src);
   $dest = drupal_realpath($dest);
   $ret = -1;
@@ -353,7 +356,8 @@ function islandora_large_image_kdu_expand($src, $dest, $args = NULL) {
   $kdu_home = variable_get('islandora_kakadu_url', FALSE);
   if ($kdu_home) {
     $kdu_expand = "$kdu_home/kdu_expand";
-  } else {
+  }
+  else {
     $kdu_expand = 'kdu_expand';
   }
   $command = "$kdu_expand -i \"$src\" -o \"$dest\" $args 2>&1";
@@ -363,11 +367,15 @@ function islandora_large_image_kdu_expand($src, $dest, $args = NULL) {
 
   if ($ret != 0) {
     $message = 'Kakadu failed to create derivatives<br/>Error: @ret<br/>Command: @command <br/>Output !output';
-    $variables = array('@ret' => $ret, '@command' => $command, '!output' => implode('<br/>', $output));
+    $variables = array(
+      '@ret' => $ret,
+      '@command' => $command,
+      '!output' => implode('<br/>', $output),
+    );
     watchdog('islandora_large_image', $message, $variables, WATCHDOG_ERROR);
     return FALSE;
   }
-  
+
   return $dest;
 }
 
@@ -485,7 +493,7 @@ function islandora_large_image_get_args() {
     $args[] = "-define jp2:cblkheight=64";
     $args[] = "-define jp2:sop";
   }
-  
+
   return $args;
 }
 
