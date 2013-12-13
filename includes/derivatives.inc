@@ -328,13 +328,12 @@ function islandora_large_image_kdu_expand($src, $dest, $args = NULL) {
   $output_string = implode(' ', $output);
 
   if ($ret != 0) {
-    $message = 'Kakadu failed to create derivatives<br/>Error: @ret<br/>Command: @command <br/>Output !output';
     $variables = array(
       '@ret' => $ret,
       '@command' => $command,
       '!output' => implode('<br/>', $output),
     );
-    watchdog('islandora_large_image', $message, $variables, WATCHDOG_ERROR);
+    watchdog('islandora_large_image', 'Kakadu failed to create derivatives<br/>Error: @ret<br/>Command: @command <br/>Output !output', $variables, WATCHDOG_ERROR);
     return FALSE;
   }
 
