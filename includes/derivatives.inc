@@ -7,53 +7,6 @@
  */
 
 /**
- * Creates the derivatives for this content model type.
- *
- * @param FedoraObject $object
- *   The object to add derivatives to.
- *
- * @return bool
- *   TRUE if all derivatives were created successfully, FALSE otherwise.
- */
-function islandora_large_image_create_all_derivatives(AbstractFedoraObject $object) {
-  if (!isset($object['OBJ'])) {
-    drupal_set_message(t('Could not create image derivatives for %s.  No image file was uploaded.', array('%s' => $object->id)), 'error');
-    return FALSE;
-  }
-
-  $base_name = str_replace(':', '-', $object->id);
-  $uploaded_file = islandora_large_image_get_uploaded_file($object, $base_name);
-
-  if (!$uploaded_file) {
-    return FALSE;
-  }
-
-  $mime_type = $object['OBJ']->mimeType;
-
-  if ($mime_type == 'image/tiff' || $mime_type == 'image/tif') {
-    $ob  = TRUE;
-    $jp2 = islandora_large_image_create_JP2_derivative($object, $uploaded_file, $base_name);
-  }
-  // Drupal file type doesn't currently support jp2k - will submit a bug
-  // report - for now, octet-stream will be assumed to be a jp2k:
-  elseif ($mime_type == 'image/jp2' or $mime_type == 'application/octet-stream') {
-    $ob = TRUE;
-    $jp2 = islandora_large_image_add_datastream($object, 'JP2', $uploaded_file, 'image/jp2',
-      t('Original JPEG 2000 "%s"', $object['OBJ']->label));
-  }
-  else {
-    return FALSE;
-  }
-
-  $jpg = islandora_large_image_create_JPG_derivative($object, $uploaded_file, $base_name);
-  $tn = islandora_large_image_create_TN_derivative($object, $uploaded_file, $base_name);
-
-  return $ob && $jp2 && $jpg && $tn && file_unmanaged_delete($uploaded_file) && file_unmanaged_delete($jp2);
-
-}
-
-
-/**
  * Fetches the upload image file from Fedora, and saves it to a temp location.
  *
  * @param AbstractObject $object
@@ -97,10 +50,19 @@ function islandora_large_image_create_jp2_derivative(AbstractObject $object, $fo
     $kakadu = variable_get('islandora_use_kakadu', !islandora_large_image_check_imagemagick_for_jpeg2000());
     $mime = strtolower($object['OBJ']->mimetype);
     if ($mime == 'image/jpeg' || $mime == 'image/jpg') {
+      // Force jpeg conversions through ImageMagick rather than Kakadu.
       $kakadu = FALSE;
     }
 
-    if ($kakadu) {
+    // If we already have a JPEG2000 file, just copy it to the JP2 datastream.
+    if ($mime == 'image/jp2') {
+      $derivative_file = $uploaded_file;
+    }
+    else {
+      $derivative_file = FALSE;
+    }
+
+    if (!$derivative_file && $kakadu) {
       // Create JP2.
       $derivative_file = islandora_large_image_kdu_compress($uploaded_file, "temporary://{$base_name}_JP2.jp2");
       if ($derivative_file === FALSE) {
@@ -113,7 +75,7 @@ function islandora_large_image_create_jp2_derivative(AbstractObject $object, $fo
         $kakadu = FALSE;
       }
     }
-    if (!$kakadu) {
+    if (!$derivative_file && !$kakadu) {
       $derivative_file = islandora_large_image_imagemagick_convert($uploaded_file, "temporary://{$base_name}_JP2.jp2", islandora_large_image_get_args());
     }
     if ($derivative_file === FALSE) {
